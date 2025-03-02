@@ -75,7 +75,7 @@ jobs:
           make BOARD=${{ github.event.inputs.board }}
 
       - name: Upload Firmware
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MicroPython Firmware
           path: micropython/ports/esp32/build-${{ github.event.inputs.board }}/*
