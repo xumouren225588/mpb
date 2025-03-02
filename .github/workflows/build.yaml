@@ -11,6 +11,8 @@ on:
         description: 'Target board'
         required: true
         default: 'GENERIC'
+        type: choice
+
         options:
           - GENERIC
           - ESP32S3
