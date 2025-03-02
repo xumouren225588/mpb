@@ -1,81 +1,63 @@
-name: Build MicroPython Firmware
+name: Build LuaNode Firmware
 
 on:
   workflow_dispatch:
     inputs:
       scriptPath:
-        description: 'Path to the Python script folder'
+        description: 'Path to the Lua script folder'
         required: true
         default: 'scripts'
       board:
         description: 'Target board'
         required: true
         default: 'GENERIC'
-        type: choice
         options:
           - GENERIC
           - ESP32S3
           - ESP32C3
-          - STM32F4DISC
-          - GENERIC_S2
-          - GENERIC_S3
-          - GENERIC_WROOM
-          - GENERIC_WROVER
-          - GENERIC_S3_MINI
-          - GENERIC_S3_MINI_I
-          - GENERIC_S3_MINI_WROVER
-          - GENERIC_S3_MINI_WROVER_I
-          - GENERIC_S3_MINI_WROOM
-          - GENERIC_S3_MINI_WROOM_I
+          - ESP32
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.x'
+          node-version: "20"
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git wget libncurses-dev flex bison gperf python3-pip python3-setuptools python3-serial python3-click python3-cryptography python3-future python3-pyparsing python3-pyelftools cmake ninja-build ccache libffi-dev libssl-dev
+        run: npm install
 
-      - name: Clone and setup ESP-IDF (if needed)
-        if: contains(${{ github.event.inputs.board }}, 'ESP32') || contains(${{ github.event.inputs.board }}, 'GENERIC')
+      - name: Clone LuaNode repository
         run: |
-          git clone --branch v5.1.2 https://github.com/espressif/esp-idf.git
-          cd esp-idf
-          git submodule update --init --recursive
-          ./install.sh
-          source export.sh
-
-      - name: Clone MicroPython
-        run: |
-          git clone https://github.com/micropython/micropython.git
-          cd micropython
+          git clone https://github.com/nodemcu/nodemcu-firmware.git
+          cd nodemcu-firmware
           git submodule update --init --recursive
 
-      - name: Copy custom scripts
+      - name: Copy Lua scripts to firmware directory
         run: |
-          mkdir -p micropython/ports/esp32/modules
-          cp -r ${{ github.event.inputs.scriptPath }}/* micropython/ports/esp32/modules/
+          mkdir -p nodemcu-firmware/app/luasrc
+          cp -r ${{ github.event.inputs.scriptPath }}/* nodemcu-firmware/app/luasrc/
 
-      - name: Build MicroPython Firmware
+      - name: Configure firmware for selected board
         run: |
-          cd micropython/mpy-cross
+          cd nodemcu-firmware
+          make menuconfig
+          # 配置目标板子和其他选项（根据 LuaNode 的 makefile 配置）
+          echo "CONFIG_BOARD_${{ github.event.inputs.board }}=y" >> .config
+
+      - name: Build LuaNode Firmware
+        run: |
+          cd nodemcu-firmware
           make
-          cd ../ports/esp32
-          make submodules
-          make BOARD=${{ github.event.inputs.board }}
 
       - name: Upload Firmware
         uses: actions/upload-artifact@v4
         with:
-          name: MicroPython Firmware
-          path: micropython/ports/esp32/build-${{ github.event.inputs.board }}/*
+          name: LuaNode Firmware
+          path: nodemcu-firmware/bin/
